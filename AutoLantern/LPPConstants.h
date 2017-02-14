@@ -186,7 +186,8 @@ enum eLeagueEvents
 	kEventOnWndProc,
 	kEventOnEnterVisible,
 	kEventOnExitVisible,
-	kEventOnUpdateChargedSpell
+	kEventOnUpdateChargedSpell,
+	kEventOnPlayAnimation
 };
 
 enum eTargetPriority

@@ -13,4 +13,5 @@ IOrbwalking* GOrbwalking = 0;
 ISpellData* GSpellData = 0;
 IBuffData* GBuffData = 0;
 IMissileData* GMissileData = 0;
+INavMesh* GNavMesh = 0;
 

@@ -223,6 +223,11 @@ public:
 	virtual float CritDamageMultiplier() = 0;
 	virtual int GetTimeVisibleMs() = 0;
 	virtual bool IsWard() = 0;
+	virtual bool IsValidObject() = 0;
+	virtual const char* GetClassIdentifier() = 0;
+	virtual bool IsDashing() = 0;
+	virtual bool CreatePath(Vec3 const& EndPosition, std::vector<Vec3>& Out) = 0;
+	virtual bool CreatePath2D(Vec2 const& EndPosition, std::vector<Vec2>& Out) = 0;
 };
 
 #endif // PluginData_h__

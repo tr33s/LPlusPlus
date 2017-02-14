@@ -23,7 +23,8 @@
 	GTargetSelector		= x->CreateTargetSelector(); \
 	GSpellData 			= x->GetSpellDataReader(); \
 	GBuffData			= x->GetBuffDataReader(); \
-	GMissileData		= x->GetMissileDataReader();
+	GMissileData		= x->GetMissileDataReader(); \
+	GNavMesh			= x->GetNavMesh();
 
 class IFont
 {
@@ -82,6 +83,7 @@ public:
 	virtual std::vector<IUnit*> GetAllInhibitors(bool Friendly, bool Enemy) = 0;
 	virtual IUnit* GetEnemyNexus() = 0;
 	virtual IUnit* GetTeamNexus() = 0;
+	virtual bool DoesObjectExist(IUnit* Source) = 0;
 };
 
 class IGame
@@ -96,7 +98,7 @@ public:
 	virtual void IssueOrder(IUnit* Source, eGameObjectOrder Order, Vec3 const& Position) = 0;
 	virtual void IssueOrder(IUnit* Source, eGameObjectOrder Order, IUnit* Target) = 0;
 	virtual float IntervalPerTick() = 0;
-	virtual void PrintChatEx(const char*, Vec3 const&) = 0;
+	virtual void PrintChatEx(const char* Message, Vec3 const& Color) = 0;
 	virtual bool WorldToMinimap(Vec3 const& World, Vec2& Minimap) = 0;
 	virtual IUnit* GetSelectedTarget() = 0;
 	virtual void ShowPing(int PingType, IUnit* Target, bool PlaySound) = 0;
@@ -114,6 +116,8 @@ public:
 	virtual void Quit() = 0;
 	virtual bool CanLevelUpSpell(int Slot) = 0;
 	virtual bool Projection(Vec3 const&, Vec3*) = 0;
+	virtual int TickCount() = 0;
+	virtual int CurrentTick() = 0;
 };
 
 class IDamage
@@ -188,7 +192,7 @@ class IHealthPrediction
 {
 public:
 	virtual float GetPredictedHealth(IUnit* Source, eHealthPredictionType Prediction, int TimeMs, int DelayMs) = 0;
-	virtual float GetKSDamage(IUnit* Target, int SpellSlot, float Delay, bool IsMissile) = 0;
+	virtual float GetKSDamage(IUnit* Target, int SpellSlot, float Delay, bool IncludeMissiles) = 0;
 };
 
 class ISpell
@@ -216,13 +220,13 @@ class ISpell2
 {
 public:
 	virtual bool CastOnTarget(IUnit* Target, int MinimumHitChance = kHitChanceHigh) = 0;
-	virtual bool CastOnTargetAoE(IUnit* Target, int MinimumChampions = 2, int MinimumHitChance = kHitChanceHigh) = 0;
+	virtual bool CastOnTargetAoE(IUnit* Target, int MinimumChampionsTohit = 2, int MinimumHitChance = kHitChanceHigh) = 0;
 	virtual bool LastHitMinion() = 0;
-	virtual bool AttackMinions(int MinimumEnemies = 3) = 0;
+	virtual bool AttackMinions(int MinimumEnemiesToHit = 3) = 0;
 	virtual bool CastOnPlayer() = 0;
 	virtual bool CastOnPosition(Vec3 const& Position) = 0;
 	virtual bool CastOnUnit(IUnit* Target) = 0;
-	virtual void FindBestCastPosition(bool IncludeMinions, bool IncludeHeroes, Vec3& CastPosition, int& Enemies) = 0;
+	virtual void FindBestCastPosition(bool IncludeMinions, bool IncludeHeroes, Vec3& CastPosition, int& EnemiesFound) = 0;
 	virtual IUnit* FindTarget(eDamageType DamageType) = 0;
 	virtual bool IsReady() = 0;
 	virtual float ManaCost() = 0;
@@ -256,6 +260,7 @@ public:
 	virtual bool CanAttack() = 0;
 	virtual bool CanMove(float Delay = 0.f) = 0;
 	virtual void ResetAA() = 0;
+	virtual float GetAutoAttackRange(IUnit* Target) = 0;
 };
 
 class IInventoryItem
@@ -334,6 +339,7 @@ public:
 	virtual float GetRange(int Slot) = 0;
 	virtual float GetSpellCastTime(int Slot) = 0;
 	virtual int GetToggleState(int Slot) = 0;
+	virtual float GetCastTime() = 0;
 };
 
 class IBuffData
@@ -367,6 +373,16 @@ public:
 	virtual float GetSpellCastTime(void* Data) = 0;
 };
 
+class INavMesh
+{
+public:
+	virtual bool TestLineOfSight(Vec3 const& StartPosition, Vec3 const& EndPosition, Vec3& CollisionPositionOut, int& CollisionFlagsOut) = 0;
+	virtual int GetCollisionFlagsForPoint(Vec3 const& Position) = 0;
+	virtual bool IsPointWall(Vec3 const& Position) = 0;
+	virtual bool IsPointGrass(Vec3 const& Position) = 0;
+	virtual float GetHeightForPoint(Vec2 const& Position) = 0;
+};
+
 class IPluginSDK
 {
 public:
@@ -393,6 +409,7 @@ public:
 	virtual void RegisterPluginInterface(std::string const& Name, PVOID Interface) = 0;
 	virtual void UnRegisterPluginInterface(std::string const& Name) = 0;
 	virtual PVOID FindPluginInterface(std::string const& Name) = 0;
+	virtual INavMesh* GetNavMesh() = 0;
 };
 
 extern IPluginSDK* GPluginSDK;
@@ -408,6 +425,7 @@ extern IOrbwalking* GOrbwalking;
 extern ISpellData* GSpellData;
 extern IBuffData* GBuffData;
 extern IMissileData* GMissileData;
+extern INavMesh* GNavMesh;
 
 #endif // PluginSDK_h__
 
