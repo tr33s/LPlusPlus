@@ -79,7 +79,7 @@ bool IsFirstW()
 
 bool IsFirstR()
 {
-	return strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancRToggle") == 0;
+	return Player->GetSpellBook()->GetLevel(kSlotR) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancRToggle") == 0;
 }
 
 bool CastSecondW()
@@ -97,7 +97,7 @@ bool CastRSpell(IUnit* target)
 
 	if (Utility::CountBuffs(Utility::GetEnemiesInRange(target, 500), QBuff) > 0)
 	{
-		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTargetAoE(target))
+		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTargetAoE(target, 3, kHitChanceMedium))
 		{
 			return true;
 		}
@@ -128,7 +128,7 @@ void Combo(IUnit* targ = nullptr, bool force = false)
 			return;
 		}
 
-		if (bCastSpell(W, target) && IsFirstW() && W->CastOnUnit(target))
+		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTarget(target, kHitChanceMedium))
 		{
 			return;
 		}
@@ -168,7 +168,7 @@ void Harass()
 		return;
 	}
 
-	if (W->CastOnUnit(target))
+	if (W->CastOnTarget(target, kHitChanceMedium))
 	{
 		if (target->IsValidTarget(Player, Q->Range()) && Q->CastOnUnit(target))
 		{
@@ -195,7 +195,8 @@ void LastHit()
 
 	for (auto minion : GEntityList->GetAllMinions(false, true, false))
 	{
-		if (minion == nullptr || !minion->IsValidTarget(Player, Q->Range()) || minion->GetHealth() > GDamage->GetSpellDamage(Player, minion, kSlotQ))
+		auto dmg = GDamage->GetSpellDamage(Player, minion, kSlotQ, 0);
+		if (minion == nullptr || !minion->IsValidTarget(Player, Q->Range()) || minion->GetHealth() > dmg)
 		{
 			continue;
 		}
@@ -209,22 +210,20 @@ void LastHit()
 
 void Farm()
 {
-	if (HarassW->Enabled() && W->IsReady())
+	if (FarmW->Enabled() && W->IsReady() && IsFirstW())
 	{
-	}
+		Vec3 pos;
+		int count;
+		W->FindBestCastPosition(true, true, pos, count);
 
-	// if not farm
-	if (false || (!Q->IsReady() && !W->IsReady()))
-	{
-		return;
-	}
-
-	for (auto minion : GEntityList->GetAllMinions(false, true, false))
-	{
-		if (minion == nullptr || !minion->IsValidTarget(Player, Q->Range()))
+		if (count >= 4 && W->CastOnPosition(pos))
 		{
-			continue;
+			return;
 		}
+	}
+
+	if (LaneClearQ->Enabled() && Q->IsReady())
+	{
 	}
 }
 
@@ -329,6 +328,7 @@ PLUGIN_API void OnLoad(IPluginSDK* PluginSDK)
 
 	Q = GPluginSDK->CreateSpell2(kSlotQ, kTargetCast, false, false, static_cast<eCollisionFlags>(kCollidesWithYasuoWall));
 	W = GPluginSDK->CreateSpell2(kSlotW, kCircleCast, false, true, static_cast<eCollisionFlags>(kCollidesWithYasuoWall));
+	W->SetOverrideRange(880);
 	E = GPluginSDK->CreateSpell2(kSlotE, kLineCast, true, false, static_cast<eCollisionFlags>(kCollidesWithHeroes | kCollidesWithMinions | kCollidesWithYasuoWall));
 	R = GPluginSDK->CreateSpell2(kSlotR, kLineCast, false, false, static_cast<eCollisionFlags>(kCollidesWithYasuoWall));
 

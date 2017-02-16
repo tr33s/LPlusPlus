@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="PopBlanc.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="LPPConstants.h">
       <Filter>Header Files</Filter>
     </ClInclude>

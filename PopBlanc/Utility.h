@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+class Vec3;
 class IUnit;
 
 class Utility
@@ -9,6 +10,7 @@ public:
 	~Utility();
 
 	static int CountBuffs(std::vector<IUnit*> units, const char* buff);
+	static int CountMinionsInRange(const Vec3 position, float range);
 	static std::vector<IUnit*> GetEnemiesInRange(IUnit* unit, float range);
 	static std::vector<IUnit*> GetAlliesInRange(IUnit* unit, float range);
 	static int CountEnemiesInRange(IUnit* unit, float range);

@@ -35,6 +35,20 @@ int Utility::CountBuffs(std::vector<IUnit*> units, const char* buff)
 	return count;
 }
 
+int Utility::CountMinionsInRange(const Vec3 position, float range)
+{
+	auto count = 0;
+	for (auto obj : GEntityList->GetAllMinions(false, true, false))
+	{
+		if (obj != nullptr && obj->IsValidObject() && (obj->ServerPosition() - position).Length() <= range)
+		{
+			count++;
+		}
+	}
+
+	return count;
+}
+
 std::vector<IUnit*> Utility::GetEnemiesInRange(IUnit* unit, float range)
 {
 	return GetInRange(unit, range, enemies);

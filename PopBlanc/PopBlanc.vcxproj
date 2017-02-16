@@ -32,7 +32,7 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -150,7 +150,6 @@
     <ClInclude Include="LPPConstants.h" />
     <ClInclude Include="PluginData.h" />
     <ClInclude Include="PluginSDK.h" />
-    <ClInclude Include="PopBlanc.h" />
     <ClInclude Include="Utility.h" />
     <ClInclude Include="Vector3.h" />
   </ItemGroup>
