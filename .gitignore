@@ -40,7 +40,6 @@ local.properties
 *.suo
 *.user
 *.sln.docstates
-*.sln
 ReadMe.txt
 
 # Build results
