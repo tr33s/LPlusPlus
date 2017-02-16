@@ -109,7 +109,7 @@ bool CastRSpell(IUnit* target)
 		}
 	}
 
-	return bCastSpell(E, target) && E->CastOnUnit(target);
+	return bCastSpell(E, target) && (target->ServerPosition() - Player->ServerPosition()).Length() > 40 && E->CastOnUnit(target);
 }
 
 void Combo(IUnit* targ = nullptr, bool force = false)
@@ -133,7 +133,7 @@ void Combo(IUnit* targ = nullptr, bool force = false)
 			return;
 		}
 
-		if (bCastSpell(E, target) && E->CastOnUnit(target))
+		if (bCastSpell(E, target) && (target->ServerPosition() - Player->ServerPosition()).Length() > 40 && E->CastOnUnit(target))
 		{
 			return;
 		}
