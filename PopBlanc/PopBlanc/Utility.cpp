@@ -4,16 +4,23 @@
 
 std::vector<IUnit*> enemies;
 std::vector<IUnit*> allies;
+IUnit* player;
 
 Utility::Utility()
 {
 	enemies = GEntityList->GetAllHeros(false, true);
 	allies = GEntityList->GetAllHeros(true, false);
+	player = GEntityList->Player();
 }
 
 
 Utility::~Utility()
 {
+}
+
+bool Utility::InRange(IUnit* unit, float range)
+{
+	return (unit->ServerPosition() - player->ServerPosition()).Length() <= range;
 }
 
 int Utility::CountBuffs(std::vector<IUnit*> units, const char* buff)

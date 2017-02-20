@@ -9,6 +9,7 @@ public:
 	Utility();
 	~Utility();
 
+	static bool InRange(IUnit* unit, float range);
 	static int CountBuffs(std::vector<IUnit*> units, const char* buff);
 	static int CountMinionsInRange(const Vec3 position, float range);
 	static std::vector<IUnit*> GetEnemiesInRange(IUnit* unit, float range);

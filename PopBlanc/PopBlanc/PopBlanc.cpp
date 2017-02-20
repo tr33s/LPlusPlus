@@ -8,11 +8,13 @@ IMenu* QMenu;
 IMenu* WMenu;
 IMenu* EMenu;
 IMenu* RMenu;
+IMenu* FleeMenu;
 IMenu* Misc;
 IMenu* Drawings;
 
 IMenuOption* ComboQ;
 IMenuOption* HarassQ;
+IMenuOption* HarassQBuff;
 IMenuOption* LastHitQ;
 IMenuOption* LaneClearQ;
 IMenuOption* FarmQMana;
@@ -27,6 +29,10 @@ IMenuOption* EFirst;
 IMenuOption* ComboR;
 IMenuOption* ComboREnemies;
 IMenuOption* DrawReady;
+
+IMenuOption* FleeKey;
+IMenuOption* FleeW;
+IMenuOption* FleeRW;
 
 IMenuOption* DrawQ;
 IMenuOption* DrawW;
@@ -44,25 +50,29 @@ std::map<ISpell2*, IMenuOption*> SpellMenuMap;
 const char* QBuff = "LeblancPMark";
 const char* EBuff = "LeblancE";
 
+static bool IsKeyDown(IMenuOption* menuOption)
+{
+	return (GetAsyncKeyState(menuOption->GetInteger()) & 0x8000) != 0;
+}
 
 IUnit* GetTarget()
 {
-	/*auto eRange = E->Range();
+	auto range = E->IsReady() ? E->Range() : W->Range();
 
 	for (auto enemy : GEntityList->GetAllHeros(false, true))
 	{
-	if (enemy == nullptr || !enemy->IsValidTarget(Player, eRange))
-	{
-	continue;
+		if (enemy == nullptr || !enemy->IsValidObject() || !enemy->IsValidTarget(Player, range))
+		{
+			continue;
+		}
+
+		if (enemy->HasBuff(QBuff) || enemy->HasBuff(EBuff))
+		{
+			return enemy;
+		}
 	}
 
-	if (enemy->HasBuff(QBuff) || enemy->HasBuff(EBuff))
-	{
-	return enemy;
-	}
-	}*/
-
-	return GTargetSelector->FindTarget(QuickestKill, SpellDamage, E->IsReady() ? E->Range() : W->Range());
+	return GTargetSelector->FindTarget(QuickestKill, SpellDamage, range);
 }
 
 
@@ -82,6 +92,11 @@ bool IsFirstR()
 	return Player->GetSpellBook()->GetLevel(kSlotR) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancRToggle") == 0;
 }
 
+bool IsRActive()
+{
+	return strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancR") == 0;
+}
+
 bool CastSecondW()
 {
 	// Second W Enabled
@@ -90,7 +105,7 @@ bool CastSecondW()
 
 bool CastRSpell(IUnit* target)
 {
-	if (strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancR") != 0)
+	if (!IsRActive())
 	{
 		return false;
 	}
@@ -156,7 +171,7 @@ void Combo(IUnit* targ = nullptr, bool force = false)
 
 void Harass()
 {
-	if (!HarassQ->Enabled() || !HarassW->Enabled() || !W->IsReady() || !IsFirstW() || !Q->IsReady())
+	if (!HarassQ->Enabled() && !HarassW->Enabled())
 	{
 		return;
 	}
@@ -168,23 +183,34 @@ void Harass()
 		return;
 	}
 
-	if (W->CastOnTarget(target, kHitChanceMedium))
+	if (W->IsReady() && IsFirstW() && W->CastOnTarget(target, kHitChanceMedium))
 	{
+		return;
+	}
+
+	// this should work
+	if (Q->IsReady())
+	{
+		if (!HarassQBuff->Enabled() && !target->HasBuff(QBuff))
+		{
+			return;
+		}
+
 		if (target->IsValidTarget(Player, Q->Range()) && Q->CastOnUnit(target))
 		{
 			return;
 		}
 
-		for (auto obj: GEntityList->GetAllUnits())
+		// why does this cause unload??
+		/*for (auto obj : GEntityList->GetAllUnits())
 		{
-			if (obj != nullptr && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
+			if (obj != nullptr && obj->IsValidObject() && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
 			{
 				return;
 			}
-		}
+		}*/
 	}
 }
-
 
 void LastHit()
 {
@@ -224,6 +250,94 @@ void Farm()
 
 	if (LaneClearQ->Enabled() && Q->IsReady())
 	{
+		// add count to find best minion
+		// also causes unload
+		/*for (auto obj : GEntityList->GetAllUnits())
+		{
+			if (obj != nullptr && obj->IsValidObject() && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && Q->CastOnUnit(obj))
+			{
+				return;
+			}
+		}*/
+	}
+}
+
+bool Flee()
+{
+	if (!IsKeyDown(FleeKey))
+	{
+		return false;
+	}
+
+	if (Player->IsDashing())
+	{
+		return true;
+	}
+
+	auto pos = GGame->CursorPosition();
+
+	GGame->IssueOrder(Player, kMoveTo, pos);
+
+	if (FleeW->Enabled() && W->IsReady() && IsFirstW() && W->CastOnPosition(pos))
+	{
+		return true;
+	}
+
+	if (FleeRW->Enabled())
+	{
+		if (IsRActive() && W->IsReady() && W->CastOnPosition(pos))
+		{
+			return true;
+		}
+
+		return R->IsReady() && IsFirstR() && R->CastOnPlayer();
+	}
+
+	return false;
+}
+
+void KillSteal()
+{
+	auto q = Q->IsReady();
+	auto w = W->IsReady() && IsFirstW();
+	// check predicted pos
+	auto e = E->IsReady();
+	auto r = R->IsReady() && IsFirstR();
+	auto range = W->Range() * 2;
+	// this will bug when w => r(w)
+	// pls fix
+
+	for (auto unit : GEntityList->GetAllHeros(false, true))
+	{
+		if (!unit->IsValidTarget(Player, range))
+		{
+			continue;
+		}
+
+		// w => r(w) => xxxx
+		if (!unit->IsValidTarget(Player, E->Range()))
+		{
+			// can't do anything
+			if (!w || ! r)
+			{
+				return;
+			}
+			return;
+		}
+
+		auto canQ = q && unit->IsValidTarget(Player, Q->Range());
+		// e => q
+		if (!unit->IsValidTarget(Player, W->Range()))
+		{
+			if (canQ)
+			{
+			}
+
+			if (e)
+			{
+			}
+			return;
+		}
 	}
 }
 
@@ -255,9 +369,9 @@ PLUGIN_EVENT(void) OnGameUpdate()
 			}
 		}*/
 
-		// flee then return
-		if (true)
+		if (Flee())
 		{
+			return;
 		}
 
 
@@ -301,10 +415,12 @@ PLUGIN_API void OnLoad(IPluginSDK* PluginSDK)
 	WMenu = MainMenu->AddMenu("W");
 	EMenu = MainMenu->AddMenu("E");
 	RMenu = MainMenu->AddMenu("R");
+	FleeMenu - MainMenu->AddMenu("Flee");
 	//Drawings = MainMenu->AddMenu("Drawings");
 
 	ComboQ = QMenu->CheckBox("Use in Combo", true);
 	HarassQ = QMenu->CheckBox("Use in Harass", true);
+	HarassQBuff = QMenu->CheckBox("Harass Only w Buff", true);
 	LastHitQ = QMenu->CheckBox("Use in LastHit", true);
 	LaneClearQ = QMenu->CheckBox("Use in LaneClear", true);
 	FarmQMana = QMenu->AddInteger("Farm Minimum Mana", 0, 100, 40);
@@ -315,8 +431,11 @@ PLUGIN_API void OnLoad(IPluginSDK* PluginSDK)
 
 	ComboE = EMenu->CheckBox("Use E", true);
 
-
 	ComboR = RMenu->CheckBox("Auto R", true);
+
+	FleeKey = FleeMenu->AddKey("Flee", 'T');
+	FleeW = FleeMenu->CheckBox("Use W", true);
+	FleeRW = FleeMenu->CheckBox("Use R(W)", true);
 
 	/*
 	DrawReady = Drawings->CheckBox("Draw Only Ready Spells", true);
