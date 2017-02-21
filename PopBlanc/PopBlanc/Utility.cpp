@@ -18,6 +18,11 @@ Utility::~Utility()
 {
 }
 
+bool Utility::IsValidUnit(IUnit* unit)
+{
+	return unit != nullptr && unit->IsValidObject() && unit->GetType() != FL_INVALID && unit->GetType() != FL_TURRET && unit->GetType() != FL_MISSILE;
+}
+
 bool Utility::InRange(IUnit* unit, float range)
 {
 	return (unit->ServerPosition() - player->ServerPosition()).Length() <= range;
@@ -47,7 +52,7 @@ int Utility::CountMinionsInRange(const Vec3 position, float range)
 	auto count = 0;
 	for (auto obj : GEntityList->GetAllMinions(false, true, false))
 	{
-		if (obj != nullptr && obj->IsValidObject() && (obj->ServerPosition() - position).Length() <= range)
+		if (IsValidUnit(obj) && (obj->ServerPosition() - position).Length() <= range)
 		{
 			count++;
 		}
@@ -79,7 +84,7 @@ std::vector<IUnit*> Utility::GetInRange(IUnit* unit, float range, std::vector<IU
 
 	for (auto obj : units)
 	{
-		if (obj != nullptr && obj->IsValidObject() && !obj->IsDead() && obj->GetNetworkId() != networkId && (obj->ServerPosition() - unit->ServerPosition()).Length() <= range)
+		if (IsValidUnit(obj) && !obj->IsDead() && obj->GetNetworkId() != networkId && (obj->ServerPosition() - unit->ServerPosition()).Length() <= range)
 		{
 			inRange.push_back(obj);
 		}
@@ -101,5 +106,27 @@ int Utility::CountAlliesInRange(IUnit* unit, float range)
 int Utility::CountInRange(IUnit* unit, float range, std::vector<IUnit*> units)
 {
 	return GetInRange(unit, range, units).size();
+}
+
+void Utility::CreateConsoleWindow()
+{
+	AllocConsole();
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+	SetConsoleTitleA("Debug Console");
+}
+
+void Utility::LogConsole(char* Fmt, ...)
+{
+	DWORD dwBytes = 0;
+	char szBuffer[1024] = {0};
+
+	va_list va;
+	va_start(va, Fmt);
+	vsnprintf_s(szBuffer, sizeof(szBuffer), Fmt, va);
+	va_end(va);
+
+	strcat_s(szBuffer, "\n");
+
+	WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), szBuffer, strlen(szBuffer), &dwBytes, nullptr);
 }
 

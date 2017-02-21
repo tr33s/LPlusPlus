@@ -1,17 +1,18 @@
 #include "PluginSDK.h"
 
-IPluginSDK* GPluginSDK = 0;
-IEventManager* GEventManager = 0;
-IRender* GRender = 0;
-IEntityList* GEntityList = 0;
-IGame* GGame = 0;
-IDamage* GDamage = 0;
-IPrediction* GPrediction = 0;
-IHealthPrediction* GHealthPrediction = 0;
-ITargetSelector* GTargetSelector = 0;
-IOrbwalking* GOrbwalking = 0;
-ISpellData* GSpellData = 0;
-IBuffData* GBuffData = 0;
-IMissileData* GMissileData = 0;
-INavMesh* GNavMesh = 0;
+IPluginSDK* GPluginSDK = nullptr;
+IEventManager* GEventManager = nullptr;
+IRender* GRender = nullptr;
+IEntityList* GEntityList = nullptr;
+IGame* GGame = nullptr;
+IDamage* GDamage = nullptr;
+IPrediction* GPrediction = nullptr;
+IHealthPrediction* GHealthPrediction = nullptr;
+ITargetSelector* GTargetSelector = nullptr;
+IOrbwalking* GOrbwalking = nullptr;
+ISpellData* GSpellData = nullptr;
+IBuffData* GBuffData = nullptr;
+IMissileData* GMissileData = nullptr;
+INavMesh* GNavMesh = nullptr;
+IUtility* GUtility = nullptr;
 

@@ -1,6 +1,7 @@
 #include <map>
 #include "PluginSDK.h"
 #include "Utility.h"
+#include <string>
 PluginSetup("PopBlanc - Trees");
 
 IMenu* MainMenu;
@@ -61,7 +62,7 @@ IUnit* GetTarget()
 
 	for (auto enemy : GEntityList->GetAllHeros(false, true))
 	{
-		if (enemy == nullptr || !enemy->IsValidObject() || !enemy->IsValidTarget(Player, range))
+		if (!Utility::IsValidUnit(enemy) || !enemy->IsValidTarget(Player, range))
 		{
 			continue;
 		}
@@ -94,7 +95,7 @@ bool IsFirstR()
 
 bool IsRActive()
 {
-	return strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancR") == 0;
+	return Player->GetSpellBook()->GetLevel(kSlotR) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancR") == 0;
 }
 
 bool CastSecondW()
@@ -117,8 +118,13 @@ bool CastRSpell(IUnit* target)
 			return true;
 		}
 
+		if (!bCastSpell(Q, target))
+		{
+			return false;
+		}
+
 		auto hasBuff = target->HasBuff(QBuff);
-		if ((target->GetHealth() < GDamage->GetSpellDamage(Player, target, kSlotQ, hasBuff ? 1 : 0) || hasBuff) && bCastSpell(Q, target) && Q->CastOnTarget(target))
+		if ((target->GetHealth() < GDamage->GetSpellDamage(Player, target, kSlotQ, hasBuff ? 1 : 0) || hasBuff) && Q->CastOnTarget(target))
 		{
 			return true;
 		}
@@ -201,14 +207,13 @@ void Harass()
 			return;
 		}
 
-		// why does this cause unload??
-		/*for (auto obj : GEntityList->GetAllUnits())
+		for (auto obj : GEntityList->GetAllUnits())
 		{
-			if (obj != nullptr && obj->IsValidObject() && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
+			if (Utility::IsValidUnit(obj) && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
 			{
 				return;
 			}
-		}*/
+		}
 	}
 }
 
@@ -251,14 +256,13 @@ void Farm()
 	if (LaneClearQ->Enabled() && Q->IsReady())
 	{
 		// add count to find best minion
-		// also causes unload
-		/*for (auto obj : GEntityList->GetAllUnits())
+		for (auto obj : GEntityList->GetAllUnits())
 		{
-			if (obj != nullptr && obj->IsValidObject() && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && Q->CastOnUnit(obj))
+			if (Utility::IsValidUnit(obj) && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && Q->CastOnUnit(obj))
 			{
 				return;
 			}
-		}*/
+		}
 	}
 }
 
@@ -409,13 +413,14 @@ PLUGIN_EVENT(void) OnRender()
 PLUGIN_API void OnLoad(IPluginSDK* PluginSDK)
 {
 	PluginSDKSetup(PluginSDK);
+	Utility::CreateConsoleWindow();
 
 	MainMenu = GPluginSDK->AddMenu("PopBlanc");
 	QMenu = MainMenu->AddMenu("Q");
 	WMenu = MainMenu->AddMenu("W");
 	EMenu = MainMenu->AddMenu("E");
 	RMenu = MainMenu->AddMenu("R");
-	FleeMenu - MainMenu->AddMenu("Flee");
+	FleeMenu = MainMenu->AddMenu("Flee");
 	//Drawings = MainMenu->AddMenu("Drawings");
 
 	ComboQ = QMenu->CheckBox("Use in Combo", true);

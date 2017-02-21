@@ -8,7 +8,7 @@
 #define PLUGIN_EVENTD(T)	T __cdecl
 
 #define PluginSetup(x) \
-	BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved) { return true; }
+	BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved) { return TRUE; }
 
 #define PluginSDKSetup(x) \
 	GPluginSDK			= x; \
@@ -24,7 +24,8 @@
 	GSpellData 			= x->GetSpellDataReader(); \
 	GBuffData			= x->GetBuffDataReader(); \
 	GMissileData		= x->GetMissileDataReader(); \
-	GNavMesh			= x->GetNavMesh();
+	GNavMesh			= x->GetNavMesh(); \
+	GUtility			= x->GetUtility();
 
 class IFont
 {
@@ -73,7 +74,7 @@ class IEntityList
 {
 public:
 	virtual int NumberOfEntities() = 0;
-	virtual IUnit* GetEntityAt(int) = 0;
+	virtual IUnit* GetEntityAt(int Idx) = 0;
 	virtual IUnit* Player() = 0;
 	virtual std::vector<IUnit*> GetAllHeros(bool Friendly, bool Enemy) = 0;
 	virtual std::vector<IUnit*> GetAllMinions(bool Friendly, bool Enemy, bool Neutral) = 0;
@@ -84,6 +85,8 @@ public:
 	virtual IUnit* GetEnemyNexus() = 0;
 	virtual IUnit* GetTeamNexus() = 0;
 	virtual bool DoesObjectExist(IUnit* Source) = 0;
+	virtual IUnit* GetEntityByNetworkId(int NetworkId) = 0;
+	virtual IUnit* GetEntityByTargetId(int TargetId) = 0;
 };
 
 class IGame
@@ -95,8 +98,8 @@ public:
 	virtual int Status() = 0;
 	virtual float Time() = 0;
 	virtual Vec3 const& CursorPosition() = 0;
-	virtual void IssueOrder(IUnit* Source, eGameObjectOrder Order, Vec3 const& Position) = 0;
-	virtual void IssueOrder(IUnit* Source, eGameObjectOrder Order, IUnit* Target) = 0;
+	virtual bool IssueOrder(IUnit* Source, eGameObjectOrder Order, Vec3 const& Position) = 0;
+	virtual bool IssueOrder(IUnit* Source, eGameObjectOrder Order, IUnit* Target) = 0;
 	virtual float IntervalPerTick() = 0;
 	virtual void PrintChatEx(const char* Message, Vec3 const& Color) = 0;
 	virtual bool WorldToMinimap(Vec3 const& World, Vec2& Minimap) = 0;
@@ -118,6 +121,7 @@ public:
 	virtual bool Projection(Vec3 const&, Vec3*) = 0;
 	virtual int TickCount() = 0;
 	virtual int CurrentTick() = 0;
+	virtual bool IsChatOpen() = 0;
 };
 
 class IDamage
@@ -151,6 +155,7 @@ public:
 	virtual int GetCollisionFlagsForPoint(Vec3 const& Position) = 0;
 	virtual bool IsPointWall(Vec3 const& Position) = 0;
 	virtual bool IsPointGrass(Vec3 const& Position) = 0;
+	virtual void RunPrediction(AdvPredictionInput* Input, AdvPredictionOutput* Output, uint32_t PredictionVersion = 1) = 0;
 };
 
 class IMenuOption
@@ -169,12 +174,12 @@ public:
 class IMenu
 {
 public:
-	virtual IMenu* AddMenu(const char*) = 0;
-	virtual IMenuOption* CheckBox(const char*, bool) = 0;
-	virtual IMenuOption* AddInteger(const char*, int, int, int) = 0;
-	virtual IMenuOption* AddFloat(const char*, float, float, float) = 0;
-	virtual IMenuOption* AddColor(const char*, DWORD) = 0;
-	virtual IMenuOption* AddColor(const char*, float, float, float, float) = 0;
+	virtual IMenu* AddMenu(const char* Title) = 0;
+	virtual IMenuOption* CheckBox(const char* Name, bool Value) = 0;
+	virtual IMenuOption* AddInteger(const char* Name, int MinValue, int MaxValue, int Value) = 0;
+	virtual IMenuOption* AddFloat(const char* Name, float MinValue, float MaxValue, float Value) = 0;
+	virtual IMenuOption* AddColor(const char* Name, DWORD Value) = 0;
+	virtual IMenuOption* AddColor(const char* Name, float R, float G, float B, float A) = 0;
 	virtual void SaveSettings() = 0;
 	virtual void Remove() = 0;
 	virtual IMenuOption* GetOption(const char* Name) = 0;
@@ -220,13 +225,13 @@ class ISpell2
 {
 public:
 	virtual bool CastOnTarget(IUnit* Target, int MinimumHitChance = kHitChanceHigh) = 0;
-	virtual bool CastOnTargetAoE(IUnit* Target, int MinimumChampionsTohit = 2, int MinimumHitChance = kHitChanceHigh) = 0;
+	virtual bool CastOnTargetAoE(IUnit* Target, int MinimumChampionsLanded = 2, int MinimumHitChance = kHitChanceHigh) = 0;
 	virtual bool LastHitMinion() = 0;
-	virtual bool AttackMinions(int MinimumEnemiesToHit = 3) = 0;
+	virtual bool AttackMinions(int MinimumEnemiesLanded = 3) = 0;
 	virtual bool CastOnPlayer() = 0;
 	virtual bool CastOnPosition(Vec3 const& Position) = 0;
 	virtual bool CastOnUnit(IUnit* Target) = 0;
-	virtual void FindBestCastPosition(bool IncludeMinions, bool IncludeHeroes, Vec3& CastPosition, int& EnemiesFound) = 0;
+	virtual void FindBestCastPosition(bool IncludeMinions, bool IncludeHeroes, Vec3& CastPosition, int& EnemiesLanded) = 0;
 	virtual IUnit* FindTarget(eDamageType DamageType) = 0;
 	virtual bool IsReady() = 0;
 	virtual float ManaCost() = 0;
@@ -244,6 +249,11 @@ public:
 	virtual void StartCharging() = 0;
 	virtual void StartCharging(Vec3 const& Position) = 0;
 	virtual float GetChargePercent() = 0;
+	virtual int GetSlot() = 0;
+	virtual void SetFrom(Vec3 const& Position) = 0;
+	virtual void SetRangeCheckFrom(Vec3 const& Position) = 0;
+	virtual bool RunPrediction(IUnit* Target, bool IsAoE, int CollisionFlags, AdvPredictionOutput* Output, uint32_t PredictionVersion = 1) = 0;
+	virtual bool CastFrom(Vec3 const& StartPosition, Vec3 const& EndPosition) = 0;
 };
 
 class IOrbwalking
@@ -371,6 +381,7 @@ public:
 	virtual float GetBaseDamage(void* Data) = 0;
 	virtual float GetRange(void* Data) = 0;
 	virtual float GetSpellCastTime(void* Data) = 0;
+	virtual bool IsAutoAttack(void* Data) = 0;
 };
 
 class INavMesh
@@ -381,6 +392,19 @@ public:
 	virtual bool IsPointWall(Vec3 const& Position) = 0;
 	virtual bool IsPointGrass(Vec3 const& Position) = 0;
 	virtual float GetHeightForPoint(Vec2 const& Position) = 0;
+};
+
+class IUtility
+{
+public:
+	virtual bool IsLeagueWindowFocused() = 0;
+	virtual bool IsPositionInFountain(Vec3 const& Source, bool CheckTeamFountain = true, bool CheckEnemyFountain = false) = 0;
+	virtual bool IsPositionUnderTurret(Vec3 const& Source, bool CheckTeamTurrets = false, bool CheckEnemyTurrets = true) = 0;
+	virtual void CreateDebugConsole() = 0;
+	virtual void DestroyDebugConsole() = 0;
+	virtual void LogConsole(const char* Fmt, ...) = 0;
+	virtual void LogFile(const char* Filename, const char* Fmt, ...) = 0;
+	virtual void ClearLogFile(const char* Filename) = 0;
 };
 
 class IPluginSDK
@@ -410,6 +434,7 @@ public:
 	virtual void UnRegisterPluginInterface(std::string const& Name) = 0;
 	virtual PVOID FindPluginInterface(std::string const& Name) = 0;
 	virtual INavMesh* GetNavMesh() = 0;
+	virtual IUtility* GetUtility() = 0;
 };
 
 extern IPluginSDK* GPluginSDK;
@@ -426,6 +451,7 @@ extern ISpellData* GSpellData;
 extern IBuffData* GBuffData;
 extern IMissileData* GMissileData;
 extern INavMesh* GNavMesh;
+extern IUtility* GUtility;
 
 #endif // PluginSDK_h__
 

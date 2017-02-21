@@ -25,6 +25,29 @@ enum ePredictionChance
 	kHitChanceImmobile
 };
 
+struct AdvPredictionInput
+{
+	Vec3 FromPosition; // Start position for casting
+	Vec3 RangeCheckFromPosition; // Start position for prediction range checks
+	bool IsAoE; // True for area of effect spells
+	bool AddBoundingRadius; // Adds target bounding radius to prediction
+	int CollisionFlags; // (Example kCollidesWithMinions|kCollidesWithYasuoWall)
+	float Delay; // Delay in seconds for cast (e.g WindupTime)
+	float Radius; // Radius of the spell
+	float Range; // Range of the spell
+	float Speed; // Speed of the spell
+	int Type; // Type of the spell (e.g kLineCast)
+	IUnit* Target; // Unit to run prediction for
+};
+
+struct AdvPredictionOutput
+{
+	int HitChance; // Odds of hitting target (e.g kHitChanceHigh)
+	Vec3 CastPosition; // Predicted position of where you should cast
+	Vec3 TargetPosition; // Predicted position of unit when spell will land
+	std::vector<IUnit*> AoETargetsHit; // Vector of all targets hit when using AoE prediction
+};
+
 struct NavigationPath
 {
 	int CurrentWaypoint_;
