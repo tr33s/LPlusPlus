@@ -5,7 +5,7 @@
 std::vector<IUnit*> enemies;
 std::vector<IUnit*> allies;
 IUnit* player;
-
+std::vector<int> goodTypes{ FL_HERO, FL_CREEP };
 Utility::Utility()
 {
 	enemies = GEntityList->GetAllHeros(false, true);
@@ -20,8 +20,14 @@ Utility::~Utility()
 
 bool Utility::IsValidUnit(IUnit* unit)
 {
-	return unit != nullptr && unit->IsValidObject() && unit->GetType() != FL_INVALID && unit->GetType() != FL_TURRET && unit->GetType() != FL_MISSILE;
+	return unit != nullptr && unit->IsValidObject() && find(goodTypes.begin(), goodTypes.end(), unit->GetType()) != goodTypes.end();
 }
+
+bool Utility::IsValidTarget(IUnit* unit, float range)
+{
+	return IsValidUnit(unit) && GEntityList->Player()->IsValidTarget(unit, range);
+}
+
 
 bool Utility::InRange(IUnit* unit, float range)
 {
@@ -106,27 +112,5 @@ int Utility::CountAlliesInRange(IUnit* unit, float range)
 int Utility::CountInRange(IUnit* unit, float range, std::vector<IUnit*> units)
 {
 	return GetInRange(unit, range, units).size();
-}
-
-void Utility::CreateConsoleWindow()
-{
-	AllocConsole();
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
-	SetConsoleTitleA("Debug Console");
-}
-
-void Utility::LogConsole(char* Fmt, ...)
-{
-	DWORD dwBytes = 0;
-	char szBuffer[1024] = {0};
-
-	va_list va;
-	va_start(va, Fmt);
-	vsnprintf_s(szBuffer, sizeof(szBuffer), Fmt, va);
-	va_end(va);
-
-	strcat_s(szBuffer, "\n");
-
-	WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), szBuffer, strlen(szBuffer), &dwBytes, nullptr);
 }
 

@@ -41,7 +41,7 @@ local.properties
 *.user
 *.sln.docstates
 ReadMe.txt
-
+*.tlog
 # Build results
 
 [Dd]ebug/

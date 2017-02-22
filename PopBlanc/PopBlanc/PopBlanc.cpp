@@ -56,18 +56,32 @@ static bool IsKeyDown(IMenuOption* menuOption)
 	return (GetAsyncKeyState(menuOption->GetInteger()) & 0x8000) != 0;
 }
 
+bool IsPassiveActive(IUnit* unit, float delay = 0)
+{
+	auto data = unit->GetBuffDataByName(QBuff);
+
+	if (GBuffData->IsValid(data) && GBuffData->IsActive(data))
+	{
+		auto duration = (GGame->Time() - GBuffData->GetStartTime(data)) * 1000;
+		// can improve this to take into account spell delay + ping/2
+		return duration >= 1400 && duration < 3800;
+	}
+
+	return false;
+}
+
 IUnit* GetTarget()
 {
 	auto range = E->IsReady() ? E->Range() : W->Range();
 
 	for (auto enemy : GEntityList->GetAllHeros(false, true))
 	{
-		if (!Utility::IsValidUnit(enemy) || !enemy->IsValidTarget(Player, range))
+		if (!Utility::IsValidTarget(enemy, range))
 		{
 			continue;
 		}
 
-		if (enemy->HasBuff(QBuff) || enemy->HasBuff(EBuff))
+		if (IsPassiveActive(enemy) || enemy->HasBuff(EBuff))
 		{
 			return enemy;
 		}
@@ -80,7 +94,7 @@ IUnit* GetTarget()
 bool bCastSpell(ISpell2* spell, IUnit* target)
 {
 	auto opt = SpellMenuMap[spell];
-	return opt != nullptr && opt->Enabled() && spell->IsReady() && target->IsValidTarget(Player, spell->Range());
+	return opt != nullptr && opt->Enabled() && spell->IsReady() && Utility::IsValidTarget(target, spell->Range());
 }
 
 bool IsFirstW()
@@ -90,12 +104,12 @@ bool IsFirstW()
 
 bool IsFirstR()
 {
-	return Player->GetSpellBook()->GetLevel(kSlotR) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancRToggle") == 0;
+	return Player->GetSpellBook()->GetToggleState(kSlotR) == 1;
 }
 
 bool IsRActive()
 {
-	return Player->GetSpellBook()->GetLevel(kSlotR) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancR") == 0;
+	return Player->GetSpellBook()->GetToggleState(kSlotR) == 2;
 }
 
 bool CastSecondW()
@@ -111,6 +125,7 @@ bool CastRSpell(IUnit* target)
 		return false;
 	}
 
+	// must be reworked
 	if (Utility::CountBuffs(Utility::GetEnemiesInRange(target, 500), QBuff) > 0)
 	{
 		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTargetAoE(target, 3, kHitChanceMedium))
@@ -123,7 +138,7 @@ bool CastRSpell(IUnit* target)
 			return false;
 		}
 
-		auto hasBuff = target->HasBuff(QBuff);
+		auto hasBuff = IsPassiveActive(target);
 		if ((target->GetHealth() < GDamage->GetSpellDamage(Player, target, kSlotQ, hasBuff ? 1 : 0) || hasBuff) && Q->CastOnTarget(target))
 		{
 			return true;
@@ -133,13 +148,25 @@ bool CastRSpell(IUnit* target)
 	return bCastSpell(E, target) && (target->ServerPosition() - Player->ServerPosition()).Length() > 40 && E->CastOnUnit(target);
 }
 
+void PrintBuff(IUnit* unit)
+{
+	std::vector<void*> vecBuffs;
+	unit->GetAllBuffsData(vecBuffs);
+
+	for (auto i : vecBuffs)
+	{
+		GBuffData->GetBuffName(i);
+		GUtility->LogConsole(GBuffData->GetBuffName(i));
+	}
+}
+
 void Combo(IUnit* targ = nullptr, bool force = false)
 {
 	try
 	{
-		auto target = targ == nullptr ? GetTarget() : targ;
+		auto target = GetTarget();
 
-		if (target == nullptr || !target->IsValidTarget())
+		if (!Utility::IsValidTarget(target))
 		{
 			return;
 		}
@@ -184,7 +211,7 @@ void Harass()
 
 	auto target = GetTarget();
 
-	if (target == nullptr || !target->IsValidTarget(Player, W->Range()))
+	if (!Utility::IsValidTarget(target, W->Range()))
 	{
 		return;
 	}
@@ -197,19 +224,19 @@ void Harass()
 	// this should work
 	if (Q->IsReady())
 	{
-		if (!HarassQBuff->Enabled() && !target->HasBuff(QBuff))
+		if (!HarassQBuff->Enabled() && !IsPassiveActive(target))
 		{
 			return;
 		}
 
-		if (target->IsValidTarget(Player, Q->Range()) && Q->CastOnUnit(target))
+		if (Utility::IsValidTarget(target, Q->Range()) && Q->CastOnUnit(target))
 		{
 			return;
 		}
 
 		for (auto obj : GEntityList->GetAllUnits())
 		{
-			if (Utility::IsValidUnit(obj) && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
+			if (Utility::IsValidUnit(obj) && obj->IsValidTarget(Player, Q->Range()) && IsPassiveActive(obj) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
 			{
 				return;
 			}
@@ -227,7 +254,7 @@ void LastHit()
 	for (auto minion : GEntityList->GetAllMinions(false, true, false))
 	{
 		auto dmg = GDamage->GetSpellDamage(Player, minion, kSlotQ, 0);
-		if (minion == nullptr || !minion->IsValidTarget(Player, Q->Range()) || minion->GetHealth() > dmg)
+		if (Utility::IsValidTarget(minion, Q->Range()) || minion->GetHealth() > dmg)
 		{
 			continue;
 		}
@@ -241,6 +268,18 @@ void LastHit()
 
 void Farm()
 {
+	if (LaneClearQ->Enabled() && Q->IsReady())
+	{
+		// add count to find best minion
+		for (auto obj : GEntityList->GetAllUnits())
+		{
+			if (Utility::IsValidTarget(obj, Q->Range()) && IsPassiveActive(obj) && Q->CastOnUnit(obj))
+			{
+				return;
+			}
+		}
+	}
+
 	if (FarmW->Enabled() && W->IsReady() && IsFirstW())
 	{
 		Vec3 pos;
@@ -250,18 +289,6 @@ void Farm()
 		if (count >= 4 && W->CastOnPosition(pos))
 		{
 			return;
-		}
-	}
-
-	if (LaneClearQ->Enabled() && Q->IsReady())
-	{
-		// add count to find best minion
-		for (auto obj : GEntityList->GetAllUnits())
-		{
-			if (Utility::IsValidUnit(obj) && obj->IsValidTarget(Player, Q->Range()) && obj->HasBuff(QBuff) && Q->CastOnUnit(obj))
-			{
-				return;
-			}
 		}
 	}
 }
@@ -313,13 +340,13 @@ void KillSteal()
 
 	for (auto unit : GEntityList->GetAllHeros(false, true))
 	{
-		if (!unit->IsValidTarget(Player, range))
+		if (!Utility::IsValidTarget(unit, range))
 		{
 			continue;
 		}
 
 		// w => r(w) => xxxx
-		if (!unit->IsValidTarget(Player, E->Range()))
+		if (!Utility::IsValidTarget(unit, E->Range()))
 		{
 			// can't do anything
 			if (!w || ! r)
@@ -329,9 +356,9 @@ void KillSteal()
 			return;
 		}
 
-		auto canQ = q && unit->IsValidTarget(Player, Q->Range());
+		auto canQ = q && !Utility::IsValidTarget(unit, Q->Range());
 		// e => q
-		if (!unit->IsValidTarget(Player, W->Range()))
+		if (!Utility::IsValidTarget(unit, W->Range()))
 		{
 			if (canQ)
 			{
@@ -413,7 +440,6 @@ PLUGIN_EVENT(void) OnRender()
 PLUGIN_API void OnLoad(IPluginSDK* PluginSDK)
 {
 	PluginSDKSetup(PluginSDK);
-	Utility::CreateConsoleWindow();
 
 	MainMenu = GPluginSDK->AddMenu("PopBlanc");
 	QMenu = MainMenu->AddMenu("Q");

@@ -17,9 +17,7 @@ public:
 	static std::vector<IUnit*> GetAlliesInRange(IUnit* unit, float range);
 	static int CountEnemiesInRange(IUnit* unit, float range);
 	static int CountAlliesInRange(IUnit* unit, float range);
-
-	static void CreateConsoleWindow();
-	static void LogConsole(char* Fmt, ...);
+	static bool IsValidTarget(IUnit* unit, float range = 50000);
 private:
 
 	static std::vector<IUnit*> GetInRange(IUnit* unit, float range, std::vector<IUnit*> units);
