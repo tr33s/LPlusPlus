@@ -5,7 +5,8 @@
 std::vector<IUnit*> enemies;
 std::vector<IUnit*> allies;
 IUnit* player;
-std::vector<int> goodTypes{ FL_HERO, FL_CREEP };
+std::vector<int> goodTypes{FL_HERO, FL_CREEP};
+
 Utility::Utility()
 {
 	enemies = GEntityList->GetAllHeros(false, true);

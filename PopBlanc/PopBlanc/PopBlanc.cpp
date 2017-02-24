@@ -1,7 +1,7 @@
 #include <map>
 #include "PluginSDK.h"
 #include "Utility.h"
-#include <string>
+
 PluginSetup("PopBlanc - Trees");
 
 IMenu* MainMenu;
@@ -47,8 +47,7 @@ ISpell2* R;
 IUnit* Player;
 
 std::map<ISpell2*, IMenuOption*> SpellMenuMap;
-
-const char* QBuff = "LeblancPMark";
+const char* PassiveBuff = "LeblancPMark";
 const char* EBuff = "LeblancE";
 
 static bool IsKeyDown(IMenuOption* menuOption)
@@ -58,14 +57,16 @@ static bool IsKeyDown(IMenuOption* menuOption)
 
 bool IsPassiveActive(IUnit* unit, float delay = 0)
 {
-	auto data = unit->GetBuffDataByName(QBuff);
+	auto bName = unit->GetType() == FL_CREEP ? "leblancpminion" : PassiveBuff;
+	auto i = unit->GetBuffDataByName(bName);
 
-	if (GBuffData->IsValid(data) && GBuffData->IsActive(data))
+	if (GBuffData->IsValid(i) && GBuffData->IsActive(i))
 	{
-		auto duration = (GGame->Time() - GBuffData->GetStartTime(data)) * 1000;
+		auto duration = (GGame->Time() - GBuffData->GetStartTime(i)) * 1000;
 		// can improve this to take into account spell delay + ping/2
 		return duration >= 1400 && duration < 3800;
 	}
+
 
 	return false;
 }
@@ -99,17 +100,17 @@ bool bCastSpell(ISpell2* spell, IUnit* target)
 
 bool IsFirstW()
 {
-	return strcmp(Player->GetSpellBook()->GetName(kSlotW), "LeblancW") == 0;
+	return Player->GetSpellLevel(kSlotW) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotW), "LeblancW") == 0;
 }
 
 bool IsFirstR()
 {
-	return Player->GetSpellBook()->GetToggleState(kSlotR) == 1;
+	return Player->GetSpellLevel(kSlotR) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancRToggle") == 0;;
 }
 
 bool IsRActive()
 {
-	return Player->GetSpellBook()->GetToggleState(kSlotR) == 2;
+	return Player->GetSpellLevel(kSlotR) > 0 && strcmp(Player->GetSpellBook()->GetName(kSlotR), "LeblancR") == 0;;
 }
 
 bool CastSecondW()
@@ -126,7 +127,7 @@ bool CastRSpell(IUnit* target)
 	}
 
 	// must be reworked
-	if (Utility::CountBuffs(Utility::GetEnemiesInRange(target, 500), QBuff) > 0)
+	if (Utility::CountBuffs(Utility::GetEnemiesInRange(target, 500), PassiveBuff) > 0)
 	{
 		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTargetAoE(target, 3, kHitChanceMedium))
 		{
@@ -155,7 +156,6 @@ void PrintBuff(IUnit* unit)
 
 	for (auto i : vecBuffs)
 	{
-		GBuffData->GetBuffName(i);
 		GUtility->LogConsole(GBuffData->GetBuffName(i));
 	}
 }
