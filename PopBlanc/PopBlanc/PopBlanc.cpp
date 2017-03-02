@@ -309,11 +309,6 @@ bool Flee()
 
 	GGame->IssueOrder(Player, kMoveTo, pos);
 
-	if (FleeW->Enabled() && W->IsReady() && IsFirstW() && W->CastOnPosition(pos))
-	{
-		return true;
-	}
-
 	if (FleeRW->Enabled())
 	{
 		if (IsRActive() && W->IsReady() && W->CastOnPosition(pos))
@@ -322,6 +317,11 @@ bool Flee()
 		}
 
 		return R->IsReady() && IsFirstR() && R->CastOnPlayer();
+	}
+
+	if (FleeW->Enabled() && W->IsReady() && IsFirstW() && W->CastOnPosition(pos))
+	{
+		return true;
 	}
 
 	return false;

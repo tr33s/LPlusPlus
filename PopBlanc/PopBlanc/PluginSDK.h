@@ -68,6 +68,7 @@ public:
 	virtual void Notification(Vec4 const& Color, DWORD SecondsToShow, const char* Message, ...) = 0;
 	virtual void DrawOutlinedCircle(Vec2 const& Position, Vec4 const& Color, float Radius) = 0;
 	virtual void NotificationEx(Vec4 const& Color, DWORD SecondsToShow, bool PrintInChat, bool ShowInCorner, const char* Fmt, ...) = 0;
+	virtual void DrawCircle(Vec3 const& Position, float Radius, Vec4 const& Color, float Width = 5.f, bool FillCircle = false, bool ZEnable = false) = 0;
 };
 
 class IEntityList
@@ -122,6 +123,8 @@ public:
 	virtual int TickCount() = 0;
 	virtual int CurrentTick() = 0;
 	virtual bool IsChatOpen() = 0;
+	virtual void ScreenToWorld(Vec2 const& ScreenPosition, Vec3* WorldPosition) = 0;
+	virtual bool WithinFogOfWar(Vec3 const& Position) = 0;
 };
 
 class IDamage
@@ -142,6 +145,19 @@ public:
 	virtual IUnit* FindTarget(eTargetPriority Priority, eDamageType Type, float Range) = 0;
 	virtual IUnit* GetFocusedTarget() = 0;
 	virtual void SetOverrideFocusedTarget(IUnit* Focused) = 0;
+
+	/// <summary>
+	/// Finds the best target
+	/// </summary>
+	/// <param name="Priority">How to prioritize the best target</param>
+	/// <param name="Type">Damage type for calculations</param>
+	/// <param name="Range">Max range</param>
+	/// <param name="RangeCheckFrom">Optional start position for range checks</param>
+	/// <param name="IgnoreShield">If set to <c>true</c> [ignore shields].</param>
+	/// <param name="IgnoredChamps">Champions to ignore</param>
+	/// <param name="Conditions">Currently unused</param>
+	/// <returns>Best target found or nullptr</returns>
+	virtual IUnit* FindTargetEx(eTargetPriority Priority, eDamageType Type, float Range, Vec3* RangeCheckFrom = nullptr, bool IgnoreSpellShields = true, std::vector<IUnit*>* IgnoredChamps = nullptr, void* Conditions = nullptr) = 0;
 };
 
 class IPrediction
@@ -271,6 +287,7 @@ public:
 	virtual bool CanMove(float Delay = 0.f) = 0;
 	virtual void ResetAA() = 0;
 	virtual float GetAutoAttackRange(IUnit* Target) = 0;
+	virtual void Orbwalk(IUnit* Target, Vec3 const& Position) = 0;
 };
 
 class IInventoryItem
@@ -350,6 +367,7 @@ public:
 	virtual float GetSpellCastTime(int Slot) = 0;
 	virtual int GetToggleState(int Slot) = 0;
 	virtual float GetCastTime() = 0;
+	virtual int GetAmmo(int Slot) = 0;
 };
 
 class IBuffData
@@ -405,6 +423,7 @@ public:
 	virtual void LogConsole(const char* Fmt, ...) = 0;
 	virtual void LogFile(const char* Filename, const char* Fmt, ...) = 0;
 	virtual void ClearLogFile(const char* Filename) = 0;
+	virtual Vec3 To3D(Vec2 const& Other) = 0;
 };
 
 class IPluginSDK
