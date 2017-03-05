@@ -55,22 +55,6 @@ static bool IsKeyDown(IMenuOption* menuOption)
 	return (GetAsyncKeyState(menuOption->GetInteger()) & 0x8000) != 0;
 }
 
-bool IsPassiveActive(IUnit* unit, float delay = 0)
-{
-	auto bName = unit->GetType() == FL_CREEP ? "leblancpminion" : PassiveBuff;
-	auto i = unit->GetBuffDataByName(bName);
-
-	if (GBuffData->IsValid(i) && GBuffData->IsActive(i))
-	{
-		auto duration = (GGame->Time() - GBuffData->GetStartTime(i)) * 1000;
-		// can improve this to take into account spell delay + ping/2
-		return duration >= 1400 && duration < 3800;
-	}
-
-
-	return false;
-}
-
 IUnit* GetTarget()
 {
 	auto range = E->IsReady() ? E->Range() : W->Range();
@@ -82,7 +66,7 @@ IUnit* GetTarget()
 			continue;
 		}
 
-		if (IsPassiveActive(enemy) || enemy->HasBuff(EBuff))
+		if (Utility::IsPassiveActive(enemy) || enemy->HasBuff(EBuff))
 		{
 			return enemy;
 		}
@@ -126,27 +110,35 @@ bool CastRSpell(IUnit* target)
 		return false;
 	}
 
-	// must be reworked
-	if (Utility::CountBuffs(Utility::GetEnemiesInRange(target, 500), PassiveBuff) > 0)
+	auto hasBuff = Utility::IsPassiveActive(target);
+	auto castQ = bCastSpell(Q, target);
+	auto castW = bCastSpell(W, target);
+	auto castE = bCastSpell(E, target);
+
+	if (hasBuff && Utility::CountEnemiesWithPassive(target, 500))
 	{
-		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTargetAoE(target, 3, kHitChanceMedium))
+		if (castW && IsFirstW() && W->CastOnTargetAoE(target, 3))// , kHitChanceMedium))
 		{
 			return true;
 		}
 
-		if (!bCastSpell(Q, target))
-		{
-			return false;
-		}
-
-		auto hasBuff = IsPassiveActive(target);
-		if ((target->GetHealth() < GDamage->GetSpellDamage(Player, target, kSlotQ, hasBuff ? 1 : 0) || hasBuff) && Q->CastOnTarget(target))
+		if (castQ && (target->GetHealth() < GDamage->GetSpellDamage(Player, target, kSlotQ, hasBuff ? 1 : 0) || hasBuff) && Q->CastOnTarget(target))
 		{
 			return true;
 		}
 	}
 
-	return bCastSpell(E, target) && (target->ServerPosition() - Player->ServerPosition()).Length() > 40 && E->CastOnUnit(target);
+	if (castE && (target->ServerPosition() - Player->ServerPosition()).Length() > 40 && E->CastOnUnit(target))
+	{
+		return true;
+	}
+
+	if (castQ && Q->CastOnTarget(target))
+	{
+		return true;
+	}
+
+	return castW && IsFirstW() && W->CastOnTarget(target);
 }
 
 void PrintBuff(IUnit* unit)
@@ -176,7 +168,7 @@ void Combo(IUnit* targ = nullptr, bool force = false)
 			return;
 		}
 
-		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTarget(target, kHitChanceMedium))
+		if (bCastSpell(W, target) && IsFirstW() && W->CastOnTarget(target))//, kHitChanceMedium))
 		{
 			return;
 		}
@@ -216,7 +208,7 @@ void Harass()
 		return;
 	}
 
-	if (W->IsReady() && IsFirstW() && W->CastOnTarget(target, kHitChanceMedium))
+	if (W->IsReady() && IsFirstW() && W->CastOnTarget(target))//, kHitChanceMedium))
 	{
 		return;
 	}
@@ -224,7 +216,7 @@ void Harass()
 	// this should work
 	if (Q->IsReady())
 	{
-		if (!HarassQBuff->Enabled() && !IsPassiveActive(target))
+		if (!HarassQBuff->Enabled() && !Utility::IsPassiveActive(target))
 		{
 			return;
 		}
@@ -236,7 +228,7 @@ void Harass()
 
 		for (auto obj : GEntityList->GetAllUnits())
 		{
-			if (Utility::IsValidUnit(obj) && obj->IsValidTarget(Player, Q->Range()) && IsPassiveActive(obj) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
+			if (Utility::IsValidUnit(obj) && obj->IsValidTarget(Player, Q->Range()) && Utility::IsPassiveActive(obj) && (obj->ServerPosition() - target->ServerPosition()).Length() < 500 && Q->CastOnUnit(obj))
 			{
 				return;
 			}
@@ -273,7 +265,7 @@ void Farm()
 		// add count to find best minion
 		for (auto obj : GEntityList->GetAllUnits())
 		{
-			if (Utility::IsValidTarget(obj, Q->Range()) && IsPassiveActive(obj) && Q->CastOnUnit(obj))
+			if (Utility::IsValidTarget(obj, Q->Range()) && Utility::IsPassiveActive(obj) && Q->CastOnUnit(obj))
 			{
 				return;
 			}
@@ -305,7 +297,7 @@ bool Flee()
 		return true;
 	}
 
-	auto pos = GGame->CursorPosition();
+	auto pos = Player->ServerPosition().Extend(GGame->CursorPosition(), W->Range());
 
 	GGame->IssueOrder(Player, kMoveTo, pos);
 
@@ -478,7 +470,7 @@ PLUGIN_API void OnLoad(IPluginSDK* PluginSDK)
 
 	Q = GPluginSDK->CreateSpell2(kSlotQ, kTargetCast, false, false, static_cast<eCollisionFlags>(kCollidesWithYasuoWall));
 	W = GPluginSDK->CreateSpell2(kSlotW, kCircleCast, false, true, static_cast<eCollisionFlags>(kCollidesWithYasuoWall));
-	W->SetOverrideRange(880);
+	//W->SetOverrideRange(880);
 	E = GPluginSDK->CreateSpell2(kSlotE, kLineCast, true, false, static_cast<eCollisionFlags>(kCollidesWithHeroes | kCollidesWithMinions | kCollidesWithYasuoWall));
 	R = GPluginSDK->CreateSpell2(kSlotR, kLineCast, false, false, static_cast<eCollisionFlags>(kCollidesWithYasuoWall));
 

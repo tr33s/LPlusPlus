@@ -18,8 +18,10 @@ public:
 	static int CountEnemiesInRange(IUnit* unit, float range);
 	static int CountAlliesInRange(IUnit* unit, float range);
 	static bool IsValidTarget(IUnit* unit, float range = 50000);
+	static bool IsPassiveActive(IUnit* unit, float delay = 0);
+	static int CountEnemiesWithPassive(IUnit* unit, float range);
 private:
-
+	static char* PassiveBuff;
 	static std::vector<IUnit*> GetInRange(IUnit* unit, float range, std::vector<IUnit*> units);
 	static int CountInRange(IUnit* unit, float range, std::vector<IUnit*> units);
 };

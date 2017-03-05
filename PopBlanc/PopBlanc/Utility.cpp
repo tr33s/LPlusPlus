@@ -7,6 +7,8 @@ std::vector<IUnit*> allies;
 IUnit* player;
 std::vector<int> goodTypes{FL_HERO, FL_CREEP};
 
+char* Utility::PassiveBuff = "LeblancPMark";
+
 Utility::Utility()
 {
 	enemies = GEntityList->GetAllHeros(false, true);
@@ -29,6 +31,34 @@ bool Utility::IsValidTarget(IUnit* unit, float range)
 	return IsValidUnit(unit) && GEntityList->Player()->IsValidTarget(unit, range);
 }
 
+bool Utility::IsPassiveActive(IUnit* unit, float delay)
+{
+	auto bName = unit->GetType() == FL_CREEP ? "leblancpminion" : PassiveBuff;
+	auto i = unit->GetBuffDataByName(bName);
+
+	if (GBuffData->IsValid(i) && GBuffData->IsActive(i))
+	{
+		auto duration = (GGame->Time() - GBuffData->GetStartTime(i)) * 1000;
+		// can improve this to take into account spell delay + ping/2
+		return duration >= 1400 && duration < 3800;
+	}
+
+
+	return false;
+}
+
+int Utility::CountEnemiesWithPassive(IUnit* unit, float range)
+{
+	auto count = 0;
+	for (auto obj : GetInRange(unit, range, enemies))
+	{
+		if (IsPassiveActive(obj))
+		{
+			count++;
+		}
+	}
+	return count;
+}
 
 bool Utility::InRange(IUnit* unit, float range)
 {
